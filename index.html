@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaTrim Pro - 高性能メディアトリマー</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            950: '#030712',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* カスタムスクロールバーとアニメーション */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #030712;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+        @keyframes shimmer {
+            100% { transform: translateX(100%); }
+        }
+        .shimmer-bg {
+            position: relative;
+            overflow: hidden;
+        }
+        .shimmer-bg::after {
+            position: absolute;
+            top: 0; right: 0; bottom: 0; left: 0;
+            transform: translateX(-100%);
+            background-image: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.1) 20%,
+                rgba(255, 255, 255, 0.2) 60%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            animation: shimmer 2s infinite;
+            content: '';
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-blue-500/30 flex flex-col justify-between">
+
+    <div>
+        <!-- ヘッダーエリア -->
+        <header class="border-b border-slate-850 bg-slate-950/50 backdrop-blur-md sticky top-0 z-50">
+            <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
+                        <!-- Scissors Icon SVG -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="9.8" y1="8.2" x2="21" y2="19.4"></line><line x1="21" y1="4.6" x2="9.8" y2="15.8"></line></svg>
+                    </div>
+                    <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 tracking-tight">
+                        MediaTrim <span class="font-light">Pro</span>
+                    </h1>
+                </div>
+                <div class="text-sm text-slate-400 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>ブラウザ内完全完結・セキュア</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-5xl mx-auto px-6 py-12">
+            <!-- カスタム通知/エラーメッセージエリア -->
+            <div id="error-banner" class="hidden mb-8 p-4 bg-red-950/50 border border-red-900/50 rounded-2xl flex items-start gap-3 text-red-200 shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-400 shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                <p id="error-text" class="text-sm leading-relaxed"></p>
+            </div>
+
+            <!-- STEP 1: アップロードエリア -->
+            <section id="step-upload" class="space-y-12">
+                <div class="text-center space-y-4">
+                    <h2 class="text-4xl md:text-5xl font-bold text-white tracking-tight">
+                        メディアを、<span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">思いのままに。</span>
+                    </h2>
+                    <p class="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed">
+                        動画や音声ファイルの余計な部分をブラウザ上で直接カット。<br>
+                        外部サーバーへ送信しないため、個人情報や音源が漏洩する心配はありません。
+                    </p>
+                </div>
+
+                <div id="drop-zone" class="relative group cursor-pointer">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                    <div class="relative border-2 border-dashed border-slate-800 hover:border-blue-500/50 bg-slate-900/40 rounded-3xl p-16 text-center transition-all duration-300">
+                        <input type="file" id="file-input" class="hidden" accept="video/*,audio/*">
+                        
+                        <div class="bg-slate-800/80 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl group-hover:scale-105 transition-transform duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        </div>
+                        
+                        <h3 class="text-2xl font-semibold text-white mb-2">ファイルを選択 または ドロップ</h3>
+                        <p class="text-slate-400 mb-8 text-sm">MP4, WEBM, MP3, WAV, M4A 等に対応</p>
+                        
+                        <div class="flex justify-center gap-4 text-xs text-slate-400">
+                            <span class="flex items-center gap-1.5 bg-slate-950/80 border border-slate-800 px-4 py-2 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7a2 2 0 0 0-2.45-1.45L16 7V5a2 2 0 0 0-2-2H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2l4.55 1.45A2 2 0 0 0 23 17V7z"></path></svg> Video
+                            </span>
+                            <span class="flex items-center gap-1.5 bg-slate-950/80 border border-slate-800 px-4 py-2 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg> Audio
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STEP 2: 編集・トリミングエリア -->
+            <section id="step-edit" class="hidden space-y-8">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="9.8" y1="8.2" x2="21" y2="19.4"></line><line x1="21" y1="4.6" x2="9.8" y2="15.8"></line></svg>
+                        範囲指定
+                    </h2>
+                    <button id="btn-back-upload" class="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                        別のファイルを選ぶ
+                    </button>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+                    <!-- [修正] プレビュー表示コンテナ (スマホ縦画面でも絶対に崩れないレスポンシブなサイズ指定) -->
+                    <div class="relative bg-slate-950 aspect-video flex items-center justify-center group overflow-hidden rounded-t-3xl min-h-[180px] sm:min-h-[280px] md:min-h-[380px] max-h-[50vh] w-full z-10 border-b border-slate-850">
+                        <!-- [修正] 動画要素を完全枠内にアスペクト比固定で閉じ込める -->
+                        <video id="preview-video" class="absolute inset-0 w-full h-full object-contain hidden mx-auto"></video>
+                        
+                        <!-- 音声ファイル用のビジュアルプレースホルダー -->
+                        <div id="audio-visualizer" class="hidden flex-col items-center justify-center space-y-4 py-8 w-full h-full absolute inset-0">
+                            <div class="w-16 h-16 sm:w-20 sm:h-20 bg-blue-600/10 rounded-full flex items-center justify-center border border-blue-500/30">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                            </div>
+                            <span id="audio-filename" class="text-slate-400 text-xs sm:text-sm max-w-xs truncate px-4">audio_file.mp3</span>
+                        </div>
+
+                        <!-- オーバーレイ再生ボタン -->
+                        <button id="btn-overlay-play" class="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/50 transition-colors z-20">
+                            <div class="bg-blue-600/90 text-white p-4 sm:p-5 rounded-full backdrop-blur-sm shadow-2xl transform group-hover:scale-105 transition-transform duration-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-1"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            </div>
+                        </button>
+
+                        <!-- [修正] 読み込み中画面（スマホの縦持ち領域内に絶対フィットするようP-4で内包調整） -->
+                        <div id="processing-overlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center z-40 rounded-t-3xl overflow-hidden w-full h-full p-4">
+                            
+                            <!-- 通常の読み込み進行画面 -->
+                            <div id="processing-status-view" class="flex flex-col items-center justify-center w-full h-full text-center">
+                                <div class="relative mb-3">
+                                    <div class="w-10 h-10 sm:w-14 sm:h-14 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                                </div>
+                                <h3 id="processing-title" class="text-sm sm:text-lg font-bold text-white mb-1 font-semibold">メディアを切り抜き中...</h3>
+                                <p id="processing-desc" class="text-slate-400 text-[10px] sm:text-xs mb-3 max-w-[240px] sm:max-w-sm text-center px-2 leading-relaxed">
+                                    指定された区間を高速抽出しています。しばらくお待ちください。
+                                </p>
+                                
+                                <div class="w-full max-w-[180px] sm:max-w-[256px] h-2 bg-slate-850 rounded-full overflow-hidden shadow-inner mb-1">
+                                  <div id="processing-bar" class="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-300 shimmer-bg" style="width: 0%"></div>
+                                </div>
+                                <div class="font-mono text-blue-400 font-semibold text-xs sm:text-sm mb-4" id="processing-percentage">0%</div>
+
+                                <button id="btn-cancel-trim" class="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-[10px] sm:text-xs font-semibold tracking-wide transition-all active:scale-95">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-400"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                                    切り抜きを中止する
+                                </button>
+                            </div>
+
+                            <!-- [修正] 中止確認ポップアップ（スマホサイズ専用設計でコンパクトに配置） -->
+                            <div id="cancel-confirm-modal" class="hidden absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center z-50 p-4 text-center animate-in fade-in zoom-in-95 duration-200">
+                                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 max-w-[220px] sm:max-w-xs w-full shadow-2xl space-y-4">
+                                    <div class="mx-auto w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-white font-bold text-xs sm:text-base">切り抜きを中止しますか？</h4>
+                                        <p class="text-slate-400 text-[10px] sm:text-xs mt-1 leading-relaxed">これまでの処理を破棄して、アップロード画面に戻ります。</p>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button id="btn-confirm-cancel-yes" class="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 rounded-xl text-[10px] sm:text-xs transition-all active:scale-95">はい</button>
+                                        <button id="btn-confirm-cancel-no" class="bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2 rounded-xl text-[10px] sm:text-xs transition-all active:scale-95">いいえ</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- コントローラー -->
+                    <div class="p-6 md:p-8 space-y-8 bg-slate-900">
+                        <!-- シークバー（タイムライン） -->
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-xs font-mono text-slate-400">
+                                <span id="time-current">00:00.0</span>
+                                <span id="time-total">00:00.0</span>
+                            </div>
+                            <div class="relative w-full h-8 flex items-center">
+                                <div class="absolute inset-x-0 h-2 bg-slate-950 rounded-full overflow-hidden">
+                                    <!-- 選択範囲の可視化用ハイライト -->
+                                    <div id="timeline-range-highlight" class="absolute h-full bg-blue-500/20 border-x border-blue-500/40" style="left: 0%; width: 100%;"></div>
+                                    <!-- 現在位置の進行状況 -->
+                                    <div id="timeline-progress" class="absolute h-full bg-blue-500" style="width: 0%;"></div>
+                                </div>
+                                <input type="range" id="seek-bar" min="0" max="100" step="0.1" value="0" class="absolute inset-0 w-full opacity-0 cursor-pointer">
+                            </div>
+                        </div>
+
+                        <!-- スタート・エンドポイント調整 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 flex flex-col justify-between">
+                                <div class="flex items-center justify-between mb-3 text-slate-400 text-xs">
+                                    <span class="flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>
+                                        開始位置
+                                    </span>
+                                    <span id="val-start-time" class="font-mono text-white bg-slate-800/80 px-2 py-0.5 rounded text-sm">00:00.0</span>
+                                </div>
+                                <button id="btn-set-start" class="w-full py-2 bg-slate-900 hover:bg-blue-600/15 hover:text-blue-400 border border-slate-800 hover:border-blue-500/30 rounded-xl transition-all font-medium text-sm">
+                                    再生ヘッド位置を開始にする
+                                </button>
+                            </div>
+                            
+                            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 flex flex-col justify-between">
+                                <div class="flex items-center justify-between mb-3 text-slate-400 text-xs">
+                                    <span class="flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
+                                        終了位置
+                                    </span>
+                                    <span id="val-end-time" class="font-mono text-white bg-slate-800/80 px-2 py-0.5 rounded text-sm">00:00.0</span>
+                                </div>
+                                <button id="btn-set-end" class="w-full py-2 bg-slate-900 hover:bg-blue-600/15 hover:text-blue-400 border border-slate-800 hover:border-blue-500/30 rounded-xl transition-all font-medium text-sm">
+                                    再生ヘッド位置を終了にする
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 操作ボタン -->
+                        <div class="pt-5 flex items-center justify-between border-t border-slate-800">
+                            <!-- 再生 / 一時停止 のみ（余計な停止ボタンは削除状態をキープ） -->
+                            <div class="flex items-center">
+                                <button id="btn-play-toggle" class="flex items-center gap-2 text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-6 py-2.5 rounded-xl transition-all">
+                                    <span id="play-btn-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                                    </span>
+                                    <span id="play-btn-text">再生</span>
+                                </button>
+                            </div>
+
+                            <button id="btn-execute-trim" class="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98]">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="9.8" y1="8.2" x2="21" y2="19.4"></line><line x1="21" y1="4.6" x2="9.8" y2="15.8"></line></svg>
+                                指定区間をカットする
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STEP 3: 完成ダウンロードエリア -->
+            <section id="step-result" class="hidden max-w-xl mx-auto">
+                <div class="bg-slate-900 border border-slate-800 rounded-3xl p-10 text-center shadow-2xl relative overflow-hidden">
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-32 bg-blue-500/10 blur-3xl"></div>
+                    
+                    <div class="relative space-y-6">
+                        <div class="w-20 h-20 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-inner border border-emerald-500/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <h2 class="text-3xl font-bold text-white">カット完了！</h2>
+                            <p class="text-slate-400 text-sm">選択した区間が正常に切り抜かれました。<br>ファイル名を確認してダウンロードしてください。</p>
+                        </div>
+
+                        <!-- ファイル名入力フォーム -->
+                        <div class="max-w-sm mx-auto space-y-2 text-left">
+                            <label for="input-filename" class="text-xs font-semibold text-slate-400 px-1">保存ファイル名</label>
+                            <div class="flex rounded-xl border border-slate-800 bg-slate-950 overflow-hidden focus-within:border-blue-500/80 focus-within:ring-1 focus-within:ring-blue-500/50 transition-all">
+                                <input type="text" id="input-filename" class="w-full bg-transparent px-4 py-3 text-sm text-white focus:outline-none" placeholder="ファイル名を入力してください">
+                                <span id="label-extension" class="bg-slate-900 px-4 py-3 text-sm font-mono text-slate-400 border-l border-slate-800 flex items-center shrink-0">.mp3</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+                            <a id="btn-download-link" href="#" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-white text-slate-950 hover:bg-slate-200 font-bold py-3.5 px-8 rounded-xl shadow-xl transition-all active:scale-[0.98]">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                ダウンロード (<span id="download-format-text">MP3</span>)
+                            </a>
+                            
+                            <button id="btn-reset" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-755 text-white font-semibold py-3.5 px-8 rounded-xl transition-all active:scale-[0.98]">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                                新しく切り抜く
+                            </button>
+                        </div>
+
+                        <div class="text-xs text-slate-500 bg-slate-950 p-4 rounded-2xl text-left border border-slate-850 flex items-start gap-2 leading-relaxed">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500 shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                            <span id="download-info-desc">
+                                ※アップロードされた音源の形式に合わせてダウンロードします。音楽プレイヤー等でそのまま再生・管理が可能です。
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- フッターエリア -->
+    <footer class="border-t border-slate-900 bg-slate-950/20 py-8 text-center text-xs text-slate-600 mt-auto">
+        <p class="tracking-widest">©youyouboy_dragon_ Official</p>
+    </footer>
+
+    <!-- JavaScript ロジック -->
+    <script>
+        // DOM要素の取得
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const stepUpload = document.getElementById('step-upload');
+        const stepEdit = document.getElementById('step-edit');
+        const stepResult = document.getElementById('step-result');
+        const videoElement = document.getElementById('preview-video');
+        const audioVisualizer = document.getElementById('audio-visualizer');
+        const audioFilename = document.getElementById('audio-filename');
+        const btnBackUpload = document.getElementById('btn-back-upload');
+        const btnOverlayPlay = document.getElementById('btn-overlay-play');
+        const btnPlayToggle = document.getElementById('btn-play-toggle');
+        const playBtnIcon = document.getElementById('play-btn-icon');
+        const playBtnText = document.getElementById('play-btn-text');
+        const seekBar = document.getElementById('seek-bar');
+        const timeCurrent = document.getElementById('time-current');
+        const timeTotal = document.getElementById('time-total');
+        const rangeHighlight = document.getElementById('timeline-range-highlight');
+        const progressLine = document.getElementById('timeline-progress');
+        const btnSetStart = document.getElementById('btn-set-start');
+        const btnSetEnd = document.getElementById('btn-set-end');
+        const valStartTime = document.getElementById('val-start-time');
+        const valEndTime = document.getElementById('val-end-time');
+        const btnExecuteTrim = document.getElementById('btn-execute-trim');
+        const processingOverlay = document.getElementById('processing-overlay');
+        const processingBar = document.getElementById('processing-bar');
+        const processingPercentage = document.getElementById('processing-percentage');
+        const processingTitle = document.getElementById('processing-title');
+        const processingDesc = document.getElementById('processing-desc');
+        const btnCancelTrim = document.getElementById('btn-cancel-trim');
+        const cancelConfirmModal = document.getElementById('cancel-confirm-modal');
+        const btnConfirmCancelYes = document.getElementById('btn-confirm-cancel-yes');
+        const btnConfirmCancelNo = document.getElementById('btn-confirm-cancel-no');
+        const btnDownloadLink = document.getElementById('btn-download-link');
+        const inputFilename = document.getElementById('input-filename');
+        const labelExtension = document.getElementById('label-extension');
+        const downloadFormatText = document.getElementById('download-format-text');
+        const downloadInfoDesc = document.getElementById('download-info-desc');
+        const btnReset = document.getElementById('btn-reset');
+        
+        const errorBanner = document.getElementById('error-banner');
+        const errorText = document.getElementById('error-text');
+
+        // メディア関連ステート
+        let mediaFile = null;
+        let mediaUrl = null;
+        let isVideo = true;
+        let originalExtension = '';
+        let duration = 0;
+        let startTime = 0;
+        let endTime = 0;
+        let isProcessing = false;
+        let activeRecorder = null; // 現在処理中のMediaRecorderオブジェクト
+        let animationId = null;
+        let currentExtension = '';
+
+        // エラーハンドリング
+        function showError(message) {
+            errorText.textContent = message;
+            errorBanner.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function clearError() {
+            errorBanner.classList.add('hidden');
+        }
+
+        // 時間フォーマット関数 (MM:SS.ms)
+        function formatTime(sec) {
+            if (isNaN(sec) || sec === Infinity) return "00:00.0";
+            const m = Math.floor(sec / 60).toString().padStart(2, '0');
+            const s = Math.floor(sec % 60).toString().padStart(2, '0');
+            const ms = Math.floor((sec % 1) * 10).toString();
+            return `${m}:${s}.${ms}`;
+        }
+
+        // ドラッグ＆ドロップおよび選択
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.querySelector('div').classList.add('border-blue-500');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.querySelector('div').classList.remove('border-blue-500');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.querySelector('div').classList.remove('border-blue-500');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                processFile(e.target.files[0]);
+            }
+        });
+
+        // ファイル処理
+        function processFile(file) {
+            clearError();
+            mediaFile = file;
+            isVideo = file.type.startsWith('video/');
+
+            // ファイル名から拡張子を抽出
+            const match = file.name.match(/\.[0-9a-z]+$/i);
+            originalExtension = match ? match[0] : (isVideo ? '.webm' : '.mp3');
+
+            // ブラウザの互換性チェック
+            if (!videoElement.captureStream && !videoElement.mozCaptureStream) {
+                showError("お使いのブラウザはメディアストリームのキャプチャ機能を完全にサポートしていません。最新のChrome, Firefox, Safari等をご利用ください。");
+                return;
+            }
+
+            if (mediaUrl) {
+                URL.revokeObjectURL(mediaUrl);
+            }
+
+            mediaUrl = URL.createObjectURL(file);
+            videoElement.src = mediaUrl;
+
+            if (isVideo) {
+                videoElement.classList.remove('hidden');
+                audioVisualizer.classList.add('hidden');
+            } else {
+                videoElement.classList.add('hidden');
+                audioVisualizer.classList.remove('hidden');
+                audioFilename.textContent = file.name;
+            }
+
+            // メディア読み込み完了時のハンドラ
+            videoElement.onloadedmetadata = () => {
+                duration = videoElement.duration;
+                startTime = 0;
+                endTime = duration;
+                
+                // コントローラー値の更新
+                seekBar.max = duration;
+                seekBar.value = 0;
+                
+                updateTimelineDisplay();
+                stepUpload.classList.add('hidden');
+                stepEdit.classList.remove('hidden');
+            };
+
+            videoElement.onerror = () => {
+                // src が存在しない場合や空文字、リセット処理中の場合はエラーを無視する
+                if (!videoElement.src || videoElement.src === "" || videoElement.src === window.location.href) {
+                    return;
+                }
+                showError("ファイルの読み込み中にエラーが発生しました。破損しているか、ブラウザが対応していないファイル形式です。");
+            };
+        }
+
+        // タイムラインと表示の更新
+        function updateTimelineDisplay() {
+            timeCurrent.textContent = formatTime(videoElement.currentTime);
+            timeTotal.textContent = formatTime(duration);
+            
+            valStartTime.textContent = formatTime(startTime);
+            valEndTime.textContent = formatTime(endTime);
+
+            const progressPercent = (videoElement.currentTime / duration) * 100;
+            progressLine.style.width = `${progressPercent}%`;
+
+            // ハイライト範囲のアップデート
+            const rangeStartPercent = (startTime / duration) * 100;
+            const rangeWidthPercent = ((endTime - startTime) / duration) * 100;
+            rangeHighlight.style.left = `${rangeStartPercent}%`;
+            rangeHighlight.style.width = `${rangeWidthPercent}%`;
+        }
+
+        // シーク動作
+        seekBar.addEventListener('input', (e) => {
+            const time = parseFloat(e.target.value);
+            videoElement.currentTime = time;
+            updateTimelineDisplay();
+        });
+
+        videoElement.addEventListener('timeupdate', () => {
+            if (!isProcessing) {
+                seekBar.value = videoElement.currentTime;
+                updateTimelineDisplay();
+
+                // プレビュー中に終了時間まで来たら自動で開始位置に戻るか停止する
+                if (videoElement.currentTime >= endTime && !videoElement.paused) {
+                    videoElement.pause();
+                    videoElement.currentTime = startTime;
+                    setPlayingState(false);
+                }
+            }
+        });
+
+        // 再生・一時停止のトグル
+        function setPlayingState(playing) {
+            if (playing) {
+                btnOverlayPlay.classList.add('hidden');
+                playBtnIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+                playBtnText.textContent = "一時停止";
+            } else {
+                btnOverlayPlay.classList.remove('hidden');
+                playBtnIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+                playBtnText.textContent = "再生";
+            }
+        }
+
+        function togglePlay() {
+            if (videoElement.paused) {
+                if (videoElement.currentTime < startTime || videoElement.currentTime >= endTime) {
+                    videoElement.currentTime = startTime;
+                }
+                videoElement.play();
+                setPlayingState(true);
+            } else {
+                videoElement.pause();
+                setPlayingState(false);
+            }
+        }
+
+        btnOverlayPlay.addEventListener('click', togglePlay);
+        btnPlayToggle.addEventListener('click', togglePlay);
+
+        // 開始・終了位置設定
+        btnSetStart.addEventListener('click', () => {
+            if (videoElement.currentTime < endTime) {
+                startTime = videoElement.currentTime;
+                updateTimelineDisplay();
+            }
+        });
+
+        btnSetEnd.addEventListener('click', () => {
+            if (videoElement.currentTime > startTime) {
+                endTime = videoElement.currentTime;
+                updateTimelineDisplay();
+            }
+        });
+
+        // Web Audio APIを用いた高速オーディオ書き出し（WAVエンコーダー）
+        function audioBufferToWav(buffer) {
+            const numOfChan = buffer.numberOfChannels;
+            const length = buffer.length * numOfChan * 2 + 44;
+            const bufferArray = new ArrayBuffer(length);
+            const view = new DataView(bufferArray);
+            const channels = [];
+            let pos = 0;
+
+            // RIFF識別子
+            setUint32(0x46464952); // "RIFF"
+            setUint32(length - 8); // ファイルサイズ - 8
+            setUint32(0x45564157); // "WAVE"
+
+            // fmt チャンク
+            setUint32(0x20746d66); // "fmt "
+            setUint32(16);         // チャンクサイズ (16)
+            setUint16(1);          // PCMフォーマット (1)
+            setUint16(numOfChan);
+            setUint32(buffer.sampleRate);
+            setUint32(buffer.sampleRate * numOfChan * 2); // バイトレート
+            setUint16(numOfChan * 2); // ブロック境界
+            setUint16(16);         // サンプルあたりのビット数 (16ビット)
+
+            // data チャンク
+            setUint32(0x61746164); // "data"
+            setUint32(buffer.length * numOfChan * 2); // データチャンクサイズ
+
+            for (let i = 0; i < numOfChan; i++) {
+                channels.push(buffer.getChannelData(i));
+            }
+
+            let offset = 0;
+            while (offset < buffer.length) {
+                for (let i = 0; i < numOfChan; i++) {
+                    let sample = channels[i][offset];
+                    // クリッピング防止
+                    sample = Math.max(-1, Math.min(1, sample));
+                    // 16bit PCMへスケーリング
+                    sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                    view.setInt16(pos, sample, true);
+                    pos += 2;
+                }
+                offset++;
+            }
+
+            return new Blob([bufferArray], { type: 'audio/wav' });
+
+            function setUint16(data) {
+                view.setUint16(pos, data, true);
+                pos += 2;
+            }
+
+            function setUint32(data) {
+                view.setUint32(pos, data, true);
+                pos += 4;
+            }
+        }
+
+        // メディア録画・トリミング処理の実行
+        btnExecuteTrim.addEventListener('click', async () => {
+            if (isProcessing) return;
+            isProcessing = true;
+            clearError();
+
+            const targetDuration = endTime - startTime;
+            if (targetDuration <= 0) {
+                showError("開始位置が終了位置より後に設定されています。");
+                isProcessing = false;
+                return;
+            }
+
+            processingOverlay.classList.remove('hidden');
+            processingBar.style.width = '0%';
+            processingPercentage.textContent = '0%';
+
+            // 音声(Audio)の場合はWeb Audio APIを使って一瞬でカットを完了させる
+            if (!isVideo) {
+                processingTitle.textContent = "音声を高速処理中...";
+                processingDesc.textContent = "ファイルをデコードし、指定区間を瞬時に切り出しています。";
+                
+                try {
+                    // プログレス表示(ダミーのアニメーションを一瞬走らせる)
+                    let dummyProgress = 0;
+                    const progressTimer = setInterval(() => {
+                        dummyProgress += 15;
+                        if (dummyProgress >= 90) {
+                            clearInterval(progressTimer);
+                        } else {
+                            processingBar.style.width = `${dummyProgress}%`;
+                            processingPercentage.textContent = `${dummyProgress}%`;
+                        }
+                    }, 50);
+
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const response = await fetch(mediaUrl);
+                    const arrayBuffer = await response.arrayBuffer();
+                    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+                    const sampleRate = audioBuffer.sampleRate;
+                    const startSample = Math.floor(startTime * sampleRate);
+                    const endSample = Math.min(audioBuffer.length, Math.floor(endTime * sampleRate));
+                    const durationSamples = endSample - startSample;
+
+                    // 新しいAudioBufferを作成
+                    const trimmedBuffer = audioCtx.createBuffer(
+                        audioBuffer.numberOfChannels,
+                        durationSamples,
+                        sampleRate
+                    );
+
+                    // チャンネルデータをコピー
+                    for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+                        const trimmedData = trimmedBuffer.getChannelData(channel);
+                        const originalData = audioBuffer.getChannelData(channel);
+                        // スライス処理
+                        const slicedData = originalData.subarray(startSample, endSample);
+                        trimmedData.set(slicedData);
+                    }
+
+                    // WAVフォーマットとして書き出し
+                    const wavBlob = audioBufferToWav(trimmedBuffer);
+                    const blobUrl = URL.createObjectURL(wavBlob);
+
+                    clearInterval(progressTimer);
+                    processingBar.style.width = '100%';
+                    processingPercentage.textContent = '100%';
+
+                    setTimeout(() => {
+                        currentExtension = '.wav'; // 出力は一瞬で生成可能な高音質WAV
+                        btnDownloadLink.href = blobUrl;
+
+                        const defaultOutputName = mediaFile ? mediaFile.name.replace(/\.[^/.]+$/, "") : 'trimmed_audio';
+                        inputFilename.value = defaultOutputName;
+                        labelExtension.textContent = currentExtension;
+                        btnDownloadLink.download = `${defaultOutputName}${currentExtension}`;
+
+                        downloadFormatText.textContent = 'WAV';
+                        downloadInfoDesc.innerHTML = `※Web Audio APIにより劣化なしで瞬時に抽出されました。<strong>高音質WAV形式</strong>で端末に直接保存されます。`;
+
+                        isProcessing = false;
+                        processingOverlay.classList.add('hidden');
+                        stepEdit.classList.add('hidden');
+                        stepResult.classList.remove('hidden');
+                    }, 200);
+
+                } catch (err) {
+                    console.error(err);
+                    showError("音声の高速デコード処理に失敗しました。ファイル形式が非対応の可能性があります。");
+                    isProcessing = false;
+                    processingOverlay.classList.add('hidden');
+                }
+                return;
+            }
+
+            // 動画(Video)の場合は倍速ブーストを用いてキャプチャ時間を大幅に縮小する
+            processingTitle.textContent = "ビデオを高速切り抜き中...";
+            processingDesc.textContent = "8倍速ブーストを用いて高速処理を行っています。";
+
+            try {
+                // ストリームの取得
+                let stream;
+                if (videoElement.captureStream) {
+                    stream = videoElement.captureStream();
+                } else if (videoElement.mozCaptureStream) {
+                    stream = videoElement.mozCaptureStream();
+                }
+
+                if (!stream) {
+                    throw new Error("このブラウザでのキャプチャがサポートされていません。");
+                }
+
+                let options = { mimeType: 'video/webm;codecs=vp9,opus' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: 'video/webm;codecs=vp8,opus' };
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options = { mimeType: 'video/webm' };
+                    }
+                }
+
+                const recorder = new MediaRecorder(stream, options);
+                activeRecorder = recorder;
+                const chunks = [];
+
+                recorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        chunks.push(e.data);
+                    }
+                };
+
+                recorder.onstop = () => {
+                    // ダウンロード時の MIME タイプと拡張子を決定
+                    let mimeType = options.mimeType.split(';')[0];
+                    currentExtension = '.webm';
+
+                    const blob = new Blob(chunks, { type: mimeType });
+                    const blobUrl = URL.createObjectURL(blob);
+                    
+                    btnDownloadLink.href = blobUrl;
+
+                    const defaultOutputName = mediaFile ? mediaFile.name.replace(/\.[^/.]+$/, "") : 'trimmed_media';
+                    inputFilename.value = defaultOutputName;
+                    labelExtension.textContent = currentExtension;
+                    btnDownloadLink.download = `${defaultOutputName}${currentExtension}`;
+
+                    downloadFormatText.textContent = 'WEBM';
+                    downloadInfoDesc.innerHTML = `※8倍速ブーストによる高速トリミングが適用されました。<strong>WEBMビデオ形式</strong>として端末に直接保存されます。`;
+
+                    // 再生速度を通常(1.0)に戻す
+                    videoElement.playbackRate = 1.0;
+
+                    isProcessing = false;
+                    activeRecorder = null;
+                    processingOverlay.classList.add('hidden');
+                    stepEdit.classList.add('hidden');
+                    stepResult.classList.remove('hidden');
+                };
+
+                // キャプチャの開始
+                videoElement.pause();
+                videoElement.currentTime = startTime;
+
+                videoElement.onseeked = () => {
+                    videoElement.onseeked = null;
+                    
+                    videoElement.muted = true; // 高速再生時の不快な音声を消音
+                    
+                    // 速度を8.0倍速に設定して時間を短縮する
+                    videoElement.playbackRate = 8.0;
+                    
+                    videoElement.play();
+                    recorder.start();
+
+                    function trackProgress() {
+                        if (!isProcessing) return;
+
+                        const current = videoElement.currentTime;
+                        const elapsed = current - startTime;
+                        let progressPercent = (elapsed / targetDuration) * 100;
+                        progressPercent = Math.min(100, Math.max(0, progressPercent));
+
+                        processingBar.style.width = `${progressPercent}%`;
+                        processingPercentage.textContent = `${Math.round(progressPercent)}%`;
+
+                        if (current >= endTime) {
+                            videoElement.pause();
+                            // 再生速度をリセット
+                            videoElement.playbackRate = 1.0;
+                            videoElement.muted = false;
+                            if (recorder.state !== 'inactive') {
+                                recorder.stop();
+                            }
+                        } else {
+                            animationId = requestAnimationFrame(trackProgress);
+                        }
+                    }
+                    animationId = requestAnimationFrame(trackProgress);
+                };
+
+            } catch (err) {
+                console.error(err);
+                showError("動画のトリミング処理中に問題が発生しました。");
+                videoElement.playbackRate = 1.0;
+                videoElement.muted = false;
+                isProcessing = false;
+                processingOverlay.classList.add('hidden');
+            }
+        });
+
+        // 「切り抜き中止」ボタンが押されたとき、カスタムモーダルを表示
+        btnCancelTrim.addEventListener('click', () => {
+            cancelConfirmModal.classList.remove('hidden');
+        });
+
+        // 「中止しますか？」 -> 「はい、中止します」
+        btnConfirmCancelYes.addEventListener('click', () => {
+            cancelConfirmModal.classList.add('hidden');
+            if (activeRecorder && activeRecorder.state !== 'inactive') {
+                activeRecorder.onstop = null;
+                try {
+                    activeRecorder.stop();
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+            videoElement.playbackRate = 1.0;
+            videoElement.muted = false;
+            resetAll();
+        });
+
+        // 「中止しますか？」 -> 「いいえ」
+        btnConfirmCancelNo.addEventListener('click', () => {
+            cancelConfirmModal.classList.add('hidden');
+        });
+
+        // ダウンロードボタンがクリックされたときに、最新のファイル名を適用する
+        btnDownloadLink.addEventListener('click', (e) => {
+            const fileNameInput = inputFilename.value.trim();
+            const finalFileName = fileNameInput !== "" ? fileNameInput : "trimmed_media";
+            btnDownloadLink.download = `${finalFileName}${currentExtension}`;
+        });
+
+        // 戻るボタン・最初からやり直す処理
+        btnBackUpload.addEventListener('click', resetAll);
+        btnReset.addEventListener('click', resetAll);
+
+        function resetAll() {
+            clearError();
+            if (animationId) cancelAnimationFrame(animationId);
+            
+            videoElement.pause();
+            videoElement.playbackRate = 1.0;
+            videoElement.muted = false;
+            
+            // onerrorイベントの誤検知を防ぐために、srcクリア前に一時的にハンドラを無効化
+            videoElement.onerror = null;
+            
+            if (mediaUrl) {
+                URL.revokeObjectURL(mediaUrl);
+                mediaUrl = null;
+            }
+            mediaFile = null;
+            videoElement.src = "";
+            videoElement.removeAttribute('src');
+            try {
+                videoElement.load(); // 再初期化
+            } catch (e) {}
+            
+            stepEdit.classList.add('hidden');
+            stepResult.classList.add('hidden');
+            stepUpload.classList.remove('hidden');
+            setPlayingState(false);
+            
+            processingBar.style.width = '0%';
+            processingPercentage.textContent = '0%';
+        }
+    </script>
+</body>
+</html>
